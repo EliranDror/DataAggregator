@@ -1,0 +1,30 @@
+[akamai_siem]
+# section name = json field 'type'
+# keep kee_value
+lookupfield1 = attackData
+lookupfield1_clientIP = 52.91.36.10
+lookupfield2 = geo
+lookupfield2_city = ASHBURN
+lookupfield2_asn = 14618
+
+
+#Number of events
+aggregationcount = 10
+#To add time
+aggregationbytes = 1024
+
+
+[eliran]
+# section name = json field 'type'
+# keep kee_value
+lookupfield1 = attackData
+lookupfield1_clientIP = 52.91.36.10
+lookupfield2 = geo
+lookupfield2_city = ASHBURN
+aggregationcount = 10
+aggregationbytes = 1024
+
+#TODO
+#sum fields
+#get enthropy
+#preserve comment field - finding aggregation options automatically
