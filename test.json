@@ -1,0 +1,10 @@
+// JSON Object (can be an imported file, of course)
+// Store RegExp pattern as a string
+// Double backslashes are required to put literal \ characters in the string
+jsonObject = { "regex": "^http:\\/\\/" };
+
+
+>>> import re
+>>> m = re.search('(?<=abc)def', 'abcdef')
+>>> m.group(0)
+'def'

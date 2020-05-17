@@ -6,9 +6,8 @@ lookupfield1_clientIP = 52.91.36.10
 lookupfield2 = geo
 lookupfield2_city = ASHBURN
 lookupfield2_asn = 14618
-
-
-#Number of events
+#Bucket size by TTL / Count / Bytes
+ttl = 15
 aggregationcount = 10
 #To add time
 aggregationbytes = 1024
@@ -21,6 +20,7 @@ lookupfield1 = attackData
 lookupfield1_clientIP = 52.91.36.10
 lookupfield2 = geo
 lookupfield2_city = ASHBURN
+ttl = 15
 aggregationcount = 10
 aggregationbytes = 1024
 

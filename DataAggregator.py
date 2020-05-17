@@ -4,54 +4,91 @@ import configparser
 import threading
 import time
 import queue
+import re
 #
 
 class MyFiltersThread(threading.Thread):
-    def __init__(self, queue, name, ttl, message_size, max_size=None):
+    def __init__(self, queue, name, ttl, message_size, max_size, msg_count, aggregation_matric):
         super(MyFiltersThread, self).__init__()
         self.queue = queue
         self.name = name
         self.ttl = ttl
-        self.message_size = message_size
-        self.max_size = max_size
+        if message_size == "None":
+            self.message_size = None
+        else:
+            self.message_size = message_size
+        if max_size == "None":
+            self.max_size = None
+        else:
+            self.max_size = max_size
+        if msg_count == "None":
+            self.msg_count = None
+        else:
+            self.msg_count = msg_count
         self.messages = []
+        self.aggregation_matric = aggregation_matric
+
     def run(self):
-        #print("Running" + str(self.number))
-        #time.sleep(self.ttl)
-        if time.sleep(self.ttl) or (self.max_size != None and (self.max_size >= (len(self.messages))*self.message_size)):
+        #Checking the bucket size by TTL or Max total message size or number of messages inside the bucket
+        #print(len(self.messages))
+
+        if (time.sleep(self.ttl)) \
+                or ((self.max_size != None and self.message_size != None) and ((self.max_size <= (len(self.messages))) * self.message_size)) \
+                or ((self.msg_count != None) and (self.msg_count <= (len(self.messages)))):
+        # if (time.sleep(self.ttl)):
             pass
         else:
-            (self.messages.append("count: " + str(len(self.messages))))
-            print(self.messages)
+            self.messages.append("count: " + str(len(self.messages)))
+            self.messages.append("name: " + str(self.name))
+            print("Message after aggregation: " + str(self.messages))
 
     def add_message(self):
         while not self.queue.empty():
             self.messages.append(self.queue.get())
 
-            #print(self.messages)
-
-
-    # def do_thing_with_message(self, message):
-    #     if self.receive_messages:
-    #         with print_lock:
-    #             print(threading.currentThread().getName(), "Received {}".format(self.queue.get()))
-
+    def clone(self):
+        return MyFiltersThread(self.queue, self.name, self.ttl, self.message_size, self.max_size, self.msg_count, self.aggregation_matric)
 
 
 filter_thread_list = []
-
-#Creating filter buckets
-for i in range(4):
+def create_filter_bucket (name, ttl, message_size, max_size, msg_count):
+    # Creating filter buckets
     q = queue.LifoQueue()
-    thread = MyFiltersThread(q, i, 15, message_size=1024)
+    thread = MyFiltersThread(q, name, ttl, message_size, max_size, msg_count, aggregation_matric=None)
     filter_thread_list.append(thread)
     thread.start()
+
+# filter_thread_list = []
+#
+# #Creating filter buckets
+# for i in range(4):
+#     q = queue.LifoQueue()
+#     thread = MyFiltersThread(q, i, 15, message_size=1024)
+#     filter_thread_list.append(thread)
+#     thread.start()
 
 
 def add_message_to_thread_queue(thread_name, message):
     #print(thread.number, ": ", thread.is_alive())
     thread_name.queue.put(message)
     thread_name.add_message()
+
+def check_backet_state(bucket_type):
+    try:
+        if bucket_type.is_alive():
+            print("Bucket: " + bucket_type.getName() + " Is alive")
+            return bucket_type
+        else:
+            filter_thread_list.remove(bucket_type)
+            bucket_type = bucket_type.clone()
+            bucket_type.start()
+            filter_thread_list.append(bucket_type)
+            print("Bucket: " + bucket_type.getName() + " restarted")
+            return bucket_type
+    except Exception as e:
+        print(e)
+        print("Issue with bucket: " + bucket_type.getName())
+
 
 def check_threads_status():
     for thread in threading.enumerate():
@@ -62,24 +99,23 @@ def check_threads_status():
             print(thread.getName())
 
 check_threads_status()
-#print(filter_thread_list)
-add_message_to_thread_queue(filter_thread_list[1], "first_message")
-time.sleep(5)
-for x in range(5):
-    add_message_to_thread_queue(filter_thread_list[1], "add from for loop " + str(x))
-
-print(filter_thread_list)
-if filter_thread_list[0].is_alive():
-    print(filter_thread_list[0].getName() + "is alive!")
-else:
-    print(filter_thread_list[0].getName() + "not alive!")
-time.sleep(20)
-if filter_thread_list[0].is_alive():
-    print(filter_thread_list[0].getName() + "is alive!")
-else:
-    print(filter_thread_list[0].getName() + "not alive!")
-
-print(filter_thread_list)
+#Testing messages
+# add_message_to_thread_queue(filter_thread_list[1], "first_message")
+# time.sleep(5)
+# for x in range(5):
+#     add_message_to_thread_queue(filter_thread_list[1], "add from for loop " + str(x))
+# print(filter_thread_list)
+# if filter_thread_list[0].is_alive():
+#     print(filter_thread_list[0].getName() + "is alive!")
+# else:
+#     print(filter_thread_list[0].getName() + "not alive!")
+# time.sleep(20)
+# if filter_thread_list[0].is_alive():
+#     print(filter_thread_list[0].getName() + "is alive!")
+# else:
+#     print(filter_thread_list[0].getName() + "not alive!")
+#
+# print(filter_thread_list)
 #check_threads_status()
 
 
@@ -94,70 +130,54 @@ print(filter_thread_list)
 # print ("after join wait")
 # check_threads_status()
 
-
-
-
-    # def add(self, item, ttl):
-    #     set.add(self, item)
-    #     t = threading.Thread(target=ttl_set_remove, args=(self, item, ttl))
-    #     t.start()
-
-
-# s = MySet()
-# s.add("start_filter1", 20)
+#### Parsing aggregation map
+# def get_filters_and_mapping():
+#     config = configparser.ConfigParser()
+#     config.read('aggregation_match_map')
 #
+#     feeds_types_to_aggregate = config.sections()
 #
-# s.add('start_filter2', 10)
-# s.add('start_filter3', 2)
-# s.add('start_filter4', 2)
-
-# print(s)
-# time.sleep(20)
-# print(s)
+#     aggregation_dict = {}
 #
-# >>>
-# MySet({'c', 'b', 'a'})
-# MySet({'b', 'a'})
+#     aggregate_messages = []
+#
+#     for section in feeds_types_to_aggregate:
+#         pre_key = None
+#         for key in config[section]:
+#             if 'lookupfield' in key:
+#                 if '_' not in key:
+#                     #print (config[section][key])
+#                     #aggregatio_dict[section + '_' + 'look_up_fields'] = config[section][key]
+#                     pre_key = key
+#                 else:
+#                     if key.split('_', 1)[0] == pre_key:
+#                         agg_value = key.split('_', 1)[1]
+#                         aggregation_dict[section + '_' + key] = config[section][key]
+#                         pre_key = key
+#                 aggregation_dict[section + '_' + key] = config[section][key]
+#
+#             else:
+#                 if key == 'aggregationcount':
+#                     aggregation_dict[section + '_' + key] = int(config[section][key])
+#                 if key == 'aggregationbytes':
+#                     aggregation_dict[section + '_' + key] = int(config[section][key])
+#                 if key == 'ttl':
+#                     aggregation_dict[section + '_' + key] = int(config[section][key])
+#     return aggregation_dict
+
+#aggregation_dict = get_filters_and_mapping()
+
+with open('aggregation_mapping.json') as config_file:
+    mapping_list = json.load(config_file)
 
 
-def check_corolation(feed_type, count, bytes):
-    for key, values in aggregation_dict.items():
-        if feed_type in key:
-            print(key, values)
+#Creating the buckets!
+for bucket in mapping_list:
+    create_filter_bucket(bucket["type"], bucket["ttl"], bucket["avg_message_in_bytes"], bucket["max_message_size"], bucket["messagescount"])
+    print(bucket)
 
-config = configparser.ConfigParser()
-config.read('aggregation_match_map')
-
-feeds_types_to_aggregate = config.sections()
-
-aggregation_dict = {}
-
-aggregate_messages = []
-
-for section in feeds_types_to_aggregate:
-    pre_key = None
-    for key in config[section]:
-        if 'lookupfield' in key:
-            if '_' not in key:
-                #print (config[section][key])
-                #aggregatio_dict[section + '_' + 'look_up_fields'] = config[section][key]
-                pre_key = key
-            else:
-                if key.split('_', 1)[0] == pre_key:
-                    agg_value = key.split('_', 1)[1]
-                    aggregation_dict[section + '_' + key] = config[section][key]
-                    pre_key = key
-
-            aggregation_dict[section + '_' + key] = config[section][key]
-
-        else:
-            if key == 'aggregationcount':
-                aggregation_dict[section + '_' + key] = config[section][key]
-            if key == 'aggregationbytes':
-                aggregation_dict[section + '_' + key] = config[section][key]
-
-    print(aggregation_dict)
-
+check_threads_status()
+print(filter_thread_list)
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind(('localhost', 514))
@@ -177,20 +197,26 @@ while True:
         print ("No data")
         continue
     json_msg_type = json.loads(data_in_utf_format)
-    for feed_type in feeds_types_to_aggregate:
-        if json_msg_type['type'] == feed_type:
-            ###Appanding message in order to check for match - this will must be Async function
-            aggregate_messages.append(json_msg_type)
-
-        #print(data)
-        print(json_msg_type)
-
+    for bucket_type in filter_thread_list:
+        for feed_type in mapping_list:
+            if bucket_type.getName() == feed_type["type"]:
+                #Checking if bucket is alive
+                # Print filter list
+                print(filter_thread_list)
+                bucket_type = check_backet_state(bucket_type)
+                add_message_to_thread_queue(bucket_type, json_msg_type)
+                print(json_msg_type)
 
 #todo
+# add config json validation
+# Add regex support
 # Add redis instead of using dict
+# Create and check bucket size by TTL / Event size / Count
+# High enthropy
 # Check corolation and add to backet in case there is a match
 # start filter thread if thread is not alive
-# check for
+# create drop backet for event drop
+
 
 
 

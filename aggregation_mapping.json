@@ -1,0 +1,32 @@
+[{
+    "type": "akamai_siem",
+    "version": "1.0",
+    "attackData": {
+        "clientIP": "52.91.36.10"
+    },
+    "geo": {
+        "asn": "14618",
+        "city": "ASHBURN"
+    },
+    "ttl": 10,
+    "messagescount": 20,
+    "avg_message_in_bytes": 1024,
+    "max_message_size": 100000
+},
+{
+    "type": "qradar_siem",
+    "version": "1.0",
+    "attackData": {
+        "clientIP": "52.91.36.10"
+    },
+    "geo": {
+        "asn": "14618",
+        "city": "ASHBURN"
+    },
+    "ttl": 20,
+    "messagescount": "None",
+    "avg_message_in_bytes": "None",
+    "max_message_size": "None"
+}
+]
+
