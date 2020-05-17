@@ -5,6 +5,7 @@ import threading
 import time
 import queue
 import re
+
 #
 
 class MyFiltersThread(threading.Thread):
@@ -43,18 +44,41 @@ class MyFiltersThread(threading.Thread):
             print("Message after aggregation: " + str(self.messages))
 
     def add_message(self):
+        print("The aggregation matric is: " + str(self.aggregation_matric))
         while not self.queue.empty():
-            self.messages.append(self.queue.get())
+            message = self.queue.get()
 
+            #Check matric!!!!!! need to check nested + regex!!!
+            for key, value in self.aggregation_matric.items():
+                for msg_key, msg_val in message.items():
+                    print(type(msg_val))
+                    if (key == msg_key) and (str(value) in str(msg_val)):
+                        print(message)
+                        print(key + ":" + str(value))
+                        print("Match!!")
+                        pass
+                    # elif isinstance(msg_val, dict):
+                    #     for nested_key, nested_value in msg_val:
+                    #         if (key == msg_key) and (value[] == msg_val):
+                    #             print(message)
+                    #             print(key + ":" + str(value))
+                    #             print("Match!!")
+                    else:
+
+                        print(message)
+                        print(key + ":" + str(value))
+                        print("NO Match!!")
+            self.messages.append(message)
+#### create a clone option to recreate bucket in case it's stopped
     def clone(self):
         return MyFiltersThread(self.queue, self.name, self.ttl, self.message_size, self.max_size, self.msg_count, self.aggregation_matric)
 
 
 filter_thread_list = []
-def create_filter_bucket (name, ttl, message_size, max_size, msg_count):
+def create_filter_bucket (name, ttl, message_size, max_size, msg_count, aggregation_matric):
     # Creating filter buckets
     q = queue.LifoQueue()
-    thread = MyFiltersThread(q, name, ttl, message_size, max_size, msg_count, aggregation_matric=None)
+    thread = MyFiltersThread(q, name, ttl, message_size, max_size, msg_count, aggregation_matric=aggregation_matric)
     filter_thread_list.append(thread)
     thread.start()
 
@@ -173,7 +197,13 @@ with open('aggregation_mapping.json') as config_file:
 
 #Creating the buckets!
 for bucket in mapping_list:
-    create_filter_bucket(bucket["type"], bucket["ttl"], bucket["avg_message_in_bytes"], bucket["max_message_size"], bucket["messagescount"])
+    aggregation_matric = {}
+    for key, value in bucket.items():
+        if key == "ttl" or key == "messagescount" or key == "avg_message_in_bytes" or key == "max_message_size":
+            continue
+        else:
+            aggregation_matric[key] = value
+    create_filter_bucket(bucket["type"], bucket["ttl"], bucket["avg_message_in_bytes"], bucket["max_message_size"], bucket["messagescount"], aggregation_matric=aggregation_matric)
     print(bucket)
 
 check_threads_status()
@@ -204,8 +234,13 @@ while True:
                 # Print filter list
                 print(filter_thread_list)
                 bucket_type = check_backet_state(bucket_type)
-                add_message_to_thread_queue(bucket_type, json_msg_type)
-                print(json_msg_type)
+                #Checking if message bilong to the bucket type
+                if json_msg_type["type"] == feed_type["type"]:
+                    add_message_to_thread_queue(bucket_type, json_msg_type)
+                    print(json_msg_type)
+                else:
+                    #put message to drop ot fire
+                    pass
 
 #todo
 # add config json validation
