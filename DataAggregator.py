@@ -27,6 +27,7 @@ class MyFiltersThread(threading.Thread):
         else:
             self.msg_count = msg_count
         self.messages = []
+        self.aggregate_message = []
         self.aggregation_matric = aggregation_matric
 
     def run(self):
@@ -39,35 +40,61 @@ class MyFiltersThread(threading.Thread):
         # if (time.sleep(self.ttl)):
             pass
         else:
-            self.messages.append("count: " + str(len(self.messages)))
-            self.messages.append("name: " + str(self.name))
-            print("Message after aggregation: " + str(self.messages))
+            self.aggregate_message.append("count: " + str(len(self.messages)))
+            self.aggregate_message.append("name: " + str(self.name))
+            if len(self.messages) == 0:
+                print("No messages to aggregate!")
+                self.aggregate_message.append({})
+            else:
+                self.aggregate_message.append(self.messages[0])
+                #print("Message after aggregation: " + str(self.messages))
+            ##Firing the message!!!!!
+            ##optional Can add last timestamp
+            print("######################Message aggregation#####################\n: " + str(self.aggregate_message))
 
     def add_message(self):
+        nested_matches = []
+        normal_matches =[]
         print("The aggregation matric is: " + str(self.aggregation_matric))
+
         while not self.queue.empty():
             message = self.queue.get()
 
             #Check matric!!!!!! need to check nested + regex!!!
             for key, value in self.aggregation_matric.items():
                 for msg_key, msg_val in message.items():
-                    print(type(msg_val))
-                    if (key == msg_key) and (str(value) in str(msg_val)):
-                        print(message)
-                        print(key + ":" + str(value))
-                        print("Match!!")
-                        pass
-                    # elif isinstance(msg_val, dict):
-                    #     for nested_key, nested_value in msg_val:
-                    #         if (key == msg_key) and (value[] == msg_val):
-                    #             print(message)
-                    #             print(key + ":" + str(value))
-                    #             print("Match!!")
-                    else:
+                    #print(type(msg_val))
+                    if (key == msg_key) and isinstance(msg_val, dict) != True:
+                        if (key == msg_key) and (value in msg_val):
+                            #print(message)
+                            #print(key + ":" + str(value))
+                            normal_matches.append(msg_key + ":" + msg_val)
+                            #print("Match!!")
+                            pass
+                    elif isinstance(msg_val, dict):
+                        if key == msg_key and isinstance(value, dict):
+                            for value_key, value_val in value.items():
+                                for nested_key, nested_value in msg_val.items():
+                                    ###### Check if matric key val = nested key val
+                                    if (key == msg_key) and (value_key == nested_key) and (value_val == nested_value):
+                                        #print(message)
+                                        #print(key + ":" + str(value_key) + ":" + str(value_val))
+                                        nested_matches.append(key + ":" + str(value_key) + ":" + str(value_val))
+                                        #print("Nested Match!!")
+                                        ####add validation matric length for savin loop times
 
-                        print(message)
-                        print(key + ":" + str(value))
-                        print("NO Match!!")
+                                    else:
+                                        #print("Nested No match!")
+                                        pass
+                    else:
+                        #print(message)
+                        #print(key + ":" + str(value))
+                        #print("NO Match!!")
+                        pass
+        if (self.aggregation_matric["nested_match_count"] == len(nested_matches)) and (self.aggregation_matric["normal_match_count"] == len(normal_matches)):
+            print("Fount exect match!!!!!!!! for bucket name: " + self.name + " adding message to bucket...")
+            print("Normal matches:" + str(normal_matches))
+            print("Nested matches:" + str(nested_matches))
             self.messages.append(message)
 #### create a clone option to recreate bucket in case it's stopped
     def clone(self):
@@ -117,9 +144,10 @@ def check_backet_state(bucket_type):
 def check_threads_status():
     for thread in threading.enumerate():
         try:
-            print(thread.name, ": ", thread.is_alive())
+            #print(thread.name, ": ", thread.is_alive())
             time.sleep(0.1)
-        except:
+        except Exception as e:
+            print(e)
             print(thread.getName())
 
 check_threads_status()
@@ -198,11 +226,19 @@ with open('aggregation_mapping.json') as config_file:
 #Creating the buckets!
 for bucket in mapping_list:
     aggregation_matric = {}
+    aggregation_matric["normal_match_count"] = 0
+    aggregation_matric["nested_match_count"] = 0
     for key, value in bucket.items():
         if key == "ttl" or key == "messagescount" or key == "avg_message_in_bytes" or key == "max_message_size":
             continue
         else:
             aggregation_matric[key] = value
+            ##### Counting the number of matches we need!
+            if isinstance(value, dict):
+                #for object in value.items():
+                aggregation_matric["nested_match_count"] = aggregation_matric["nested_match_count"] + len(value)
+            else:
+                aggregation_matric["normal_match_count"] = aggregation_matric["normal_match_count"] + 1
     create_filter_bucket(bucket["type"], bucket["ttl"], bucket["avg_message_in_bytes"], bucket["max_message_size"], bucket["messagescount"], aggregation_matric=aggregation_matric)
     print(bucket)
 
