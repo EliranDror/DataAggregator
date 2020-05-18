@@ -116,7 +116,7 @@ while True:
         s = check_connection()
         s.send(byt)
         time.sleep(1)
-        print("Sending new Akamai json message...")
+        print("Sending new Akamai json message!!...")
         if terminate:
             print("Exiting!")
             s.close()

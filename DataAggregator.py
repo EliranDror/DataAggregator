@@ -296,7 +296,7 @@ while True:
         for feed_type in mapping_list:
             if bucket_type.getName() == feed_type["type"]:
                 #Checking if bucket is alive
-                # Print filter list
+                # Print filter list!!!
                 print(filter_thread_list)
                 bucket_type = check_backet_state(bucket_type)
                 #Checking if message bilong to the bucket type
