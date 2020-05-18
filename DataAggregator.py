@@ -5,8 +5,17 @@ import threading
 import time
 import queue
 import re
-
+import math
 #
+
+def entropy(string):
+    # get probability of chars in string
+    prob = [float(string.count(c)) / len(string) for c in dict.fromkeys(list(string))]
+
+    # calculate the entropy
+    entropy = - sum([p * math.log(p) / math.log(2.0) for p in prob])
+
+    return entropy
 
 class MyFiltersThread(threading.Thread):
     def __init__(self, queue, name, ttl, message_size, max_size, msg_count, aggregation_matric):
@@ -76,7 +85,7 @@ class MyFiltersThread(threading.Thread):
                     # if self.aggregation_matric["normal_match_count"] == len(normal_matches):
                     #     break
                     if (key == msg_key) and isinstance(msg_val, dict) != True:
-                        if (key == msg_key) and (value in msg_val):
+                        if (key == msg_key) and (value == msg_val):
                             #print(message)
                             #print(key + ":" + str(value))
                             normal_matches.append(msg_key + ":" + msg_val)
@@ -99,28 +108,28 @@ class MyFiltersThread(threading.Thread):
                                     if self.check_if_value_is_regex(value_val):
                                         m = re.search(nested_value, nested_value)
                                         match = m.group(0)
-                                        if (key == msg_key) and (value_key == nested_key) and (match in nested_value):
+                                        if (key == msg_key) and (value_key == nested_key) and (match == nested_value):
                                             # print(message)
                                             # print(key + ":" + str(value))
                                             nested_matches.append(key + ":" + str(value_key) + ":" + str(value_val))
                                             # print("Match!!")
-                                        pass
-                                    elif (key == msg_key) and (value_key == nested_key) and (value_val == nested_value):
-                                        ###### Check if matric key val = nested key val
-                                            #print(message)
-                                            #print(key + ":" + str(value_key) + ":" + str(value_val))
-                                            nested_matches.append(key + ":" + str(value_key) + ":" + str(value_val))
-                                            #print("Nested Match!!")
-                                            ####add validation matric length for savin loop times
+                                            pass
+                                        elif (key == msg_key) and (value_key == nested_key) and (value_val in nested_value):
+                                            ###### Check if matric key val = nested key val
+                                                #print(message)
+                                                #print(key + ":" + str(value_key) + ":" + str(value_val))
+                                                nested_matches.append(key + ":" + str(value_key) + ":" + str(value_val))
+                                                #print("Nested Match!!")
+                                                ####add validation matric length for savin loop times
 
-                                    else:
-                                        #print("Nested No match!")
-                                        pass
-                    else:
+                                        else:
+                                            #print("Nested No match!")
+                                            pass
+                        else:
                         #print(message)
                         #print(key + ":" + str(value))
                         #print("NO Match!!")
-                        pass
+                            pass
         if (self.aggregation_matric["nested_match_count"] == len(nested_matches)) and (self.aggregation_matric["normal_match_count"] == len(normal_matches)):
             print("Fount exact match!!!!!!!! for bucket name: " + self.name + " adding message to bucket...")
             print("Normal matches:" + str(normal_matches))
@@ -301,6 +310,8 @@ while True:
 
 #todo
 # add config json validation
+# Add drop bucket
+# Preserve common fields
 # Add regex support
 # add int type support
 # Add redis instead of using dict
