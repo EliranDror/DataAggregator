@@ -52,11 +52,17 @@ class MyFiltersThread(threading.Thread):
             ##optional Can add last timestamp
             print("######################Message aggregation#####################\n: " + str(self.aggregate_message))
 
+    def check_if_value_is_regex(self, value):
+        try:
+            re.compile(str(value))
+            return True
+        except re.error:
+            return False
+
     def add_message(self):
         nested_matches = []
         normal_matches =[]
         print("The aggregation matric is: " + str(self.aggregation_matric))
-
         while not self.queue.empty():
             message = self.queue.get()
 
@@ -64,24 +70,47 @@ class MyFiltersThread(threading.Thread):
             for key, value in self.aggregation_matric.items():
                 for msg_key, msg_val in message.items():
                     #print(type(msg_val))
+                    #### Checking normal values
+                    ##check if value is regular expression
+
                     if (key == msg_key) and isinstance(msg_val, dict) != True:
                         if (key == msg_key) and (value in msg_val):
                             #print(message)
                             #print(key + ":" + str(value))
                             normal_matches.append(msg_key + ":" + msg_val)
                             #print("Match!!")
+
                             pass
+                        elif (key == msg_key) and self.check_if_value_is_regex(value) == True:
+                            #check with value
+                            m = re.search(value, msg_val)
+                            match = m.group(0)
+                            if (key == msg_key) and (match in msg_val):
+                                # print(message)
+                                # print(key + ":" + str(value))
+                                normal_matches.append(msg_key + ":" + msg_val)
+                                # print("Match!!")
+
                     elif isinstance(msg_val, dict):
                         if key == msg_key and isinstance(value, dict):
                             for value_key, value_val in value.items():
                                 for nested_key, nested_value in msg_val.items():
-                                    ###### Check if matric key val = nested key val
-                                    if (key == msg_key) and (value_key == nested_key) and (value_val == nested_value):
-                                        #print(message)
-                                        #print(key + ":" + str(value_key) + ":" + str(value_val))
-                                        nested_matches.append(key + ":" + str(value_key) + ":" + str(value_val))
-                                        #print("Nested Match!!")
-                                        ####add validation matric length for savin loop times
+                                    if self.check_if_value_is_regex(value_val):
+                                        m = re.search(nested_value, nested_value)
+                                        match = m.group(0)
+                                        if (key == msg_key) and (value_key == nested_key) and (match in nested_value):
+                                            # print(message)
+                                            # print(key + ":" + str(value))
+                                            nested_matches.append(key + ":" + str(value_key) + ":" + str(value_val))
+                                            # print("Match!!")
+                                        pass
+                                    elif (key == msg_key) and (value_key == nested_key) and (value_val == nested_value):
+                                        ###### Check if matric key val = nested key val
+                                            #print(message)
+                                            #print(key + ":" + str(value_key) + ":" + str(value_val))
+                                            nested_matches.append(key + ":" + str(value_key) + ":" + str(value_val))
+                                            #print("Nested Match!!")
+                                            ####add validation matric length for savin loop times
 
                                     else:
                                         #print("Nested No match!")
@@ -92,7 +121,7 @@ class MyFiltersThread(threading.Thread):
                         #print("NO Match!!")
                         pass
         if (self.aggregation_matric["nested_match_count"] == len(nested_matches)) and (self.aggregation_matric["normal_match_count"] == len(normal_matches)):
-            print("Fount exect match!!!!!!!! for bucket name: " + self.name + " adding message to bucket...")
+            print("Fount exact match!!!!!!!! for bucket name: " + self.name + " adding message to bucket...")
             print("Normal matches:" + str(normal_matches))
             print("Nested matches:" + str(nested_matches))
             self.messages.append(message)
@@ -250,7 +279,7 @@ s.bind(('localhost', 514))
 s.listen(1)
 conn, addr = s.accept()
 event_msg_rcv_size = 10240000
-aggregator_match_map = ''
+
 
 
 #Start listen!!
@@ -281,6 +310,7 @@ while True:
 #todo
 # add config json validation
 # Add regex support
+# add int type support
 # Add redis instead of using dict
 # Create and check bucket size by TTL / Event size / Count
 # High enthropy

@@ -1,6 +1,6 @@
 [{
     "type": "akamai_siem",
-    "version": "1.0",
+    "version": "(?<=1).0",
     "attackData": {
         "clientIP": "52.91.36.10",
         "configId": "14227"},
