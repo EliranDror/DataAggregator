@@ -68,18 +68,19 @@ class MyFiltersThread(threading.Thread):
 
             #Check matric!!!!!! need to check nested + regex!!!
             for key, value in self.aggregation_matric.items():
+                if key == "normal_match_count" or key == "nested_match_count":
+                    continue
                 for msg_key, msg_val in message.items():
                     #print(type(msg_val))
-                    #### Checking normal values
-                    ##check if value is regular expression
-
+                    ############################################################################ Checking normal values
+                    # if self.aggregation_matric["normal_match_count"] == len(normal_matches):
+                    #     break
                     if (key == msg_key) and isinstance(msg_val, dict) != True:
                         if (key == msg_key) and (value in msg_val):
                             #print(message)
                             #print(key + ":" + str(value))
                             normal_matches.append(msg_key + ":" + msg_val)
                             #print("Match!!")
-
                             pass
                         elif (key == msg_key) and self.check_if_value_is_regex(value) == True:
                             #check with value
@@ -90,7 +91,7 @@ class MyFiltersThread(threading.Thread):
                                 # print(key + ":" + str(value))
                                 normal_matches.append(msg_key + ":" + msg_val)
                                 # print("Match!!")
-
+                    #############################################################################Check Nested matches
                     elif isinstance(msg_val, dict):
                         if key == msg_key and isinstance(value, dict):
                             for value_key, value_val in value.items():
@@ -137,15 +138,6 @@ def create_filter_bucket (name, ttl, message_size, max_size, msg_count, aggregat
     thread = MyFiltersThread(q, name, ttl, message_size, max_size, msg_count, aggregation_matric=aggregation_matric)
     filter_thread_list.append(thread)
     thread.start()
-
-# filter_thread_list = []
-#
-# #Creating filter buckets
-# for i in range(4):
-#     q = queue.LifoQueue()
-#     thread = MyFiltersThread(q, i, 15, message_size=1024)
-#     filter_thread_list.append(thread)
-#     thread.start()
 
 
 def add_message_to_thread_queue(thread_name, message):
@@ -317,6 +309,7 @@ while True:
 # Check corolation and add to backet in case there is a match
 # start filter thread if thread is not alive
 # create drop backet for event drop
+# to overwrite git push --set-upstream origin master --force
 
 
 
